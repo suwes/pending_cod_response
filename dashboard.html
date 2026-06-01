@@ -53,7 +53,21 @@ thead th{padding:7px 11px;text-align:left;font-size:10px;font-weight:700;text-tr
 thead th:hover{color:var(--t1)}.th-sorted{color:var(--blue)!important}.th-r{text-align:right}
 tbody tr{border-bottom:1px solid var(--bd);transition:background var(--tr)}tbody tr:last-child{border-bottom:none}tbody tr:hover{background:var(--bg-h)}tbody tr.total-row td{background:var(--bg-e);font-weight:600;border-top:1px solid var(--bd2)}tbody tr.clickable{cursor:pointer}
 td{padding:8px 11px;color:var(--t1)}td.r{text-align:right;font-family:var(--mono);font-size:11px}
-/* PAGINATION */
+
+/* ── [NEW] DPD badges ── */
+.dpd-over{background:var(--red-bg);color:var(--red)}
+.dpd-today{background:var(--yellow-bg);color:var(--yellow)}
+.dpd-zero{background:var(--blue-bg);color:var(--blue)}
+.dpd-ok{background:var(--green-bg);color:var(--green)}
+.dpd-none{background:var(--bg-e);color:var(--t3)}
+
+/* ── [NEW] Sticky first column – dashboard detail table ── */
+#dashTable thead th:first-child{position:sticky;left:0;z-index:3;background:var(--bg-e);box-shadow:1px 0 0 var(--bd)}
+#dashTable tbody td:first-child{position:sticky;left:0;z-index:1;background:var(--bg-c);box-shadow:1px 0 0 var(--bd);transition:background var(--tr)}
+#dashTable tbody tr:hover td:first-child{background:var(--bg-h)}
+#dashTable tbody tr.total-row td:first-child{background:var(--bg-e)}
+
+/* ── PAGINATION ── */
 .pagination-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 15px;border-top:1px solid var(--bd);flex-wrap:wrap;gap:8px}
 .pag-left{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--t2)}
 .pag-perpage{height:26px;padding:0 8px;border-radius:var(--rm);background:var(--bg-e);border:1px solid var(--bd);color:var(--t1);font-size:11px;font-family:var(--font);outline:none;cursor:pointer}.pag-perpage:focus{border-color:var(--blue)}
@@ -101,10 +115,11 @@ td{padding:8px 11px;color:var(--t1)}td.r{text-align:right;font-family:var(--mono
 .janji-input{height:34px;padding:0 10px;border-radius:var(--rm);background:var(--bg-e);border:1px solid var(--bd);color:var(--t1);font-size:12px;font-family:var(--font);outline:none;transition:border-color var(--tr);flex:1}
 .janji-input:focus{border-color:var(--blue)}
 .dpd-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;font-family:var(--mono)}
-.dpd-over{background:var(--red-bg);color:var(--red)}
-.dpd-today{background:var(--yellow-bg);color:var(--yellow)}
-.dpd-ok{background:var(--green-bg);color:var(--green)}
-.dpd-none{background:var(--bg-e);color:var(--t3)}
+
+/* ── [NEW] Delete button styling ── */
+.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid rgba(239,68,68,.25);margin-right:auto}
+.btn-danger:hover{background:rgba(239,68,68,.2);opacity:1}
+
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1d1d25;border:1px solid var(--bd2);color:var(--t1);padding:9px 16px;border-radius:var(--rm);font-size:12px;font-weight:500;z-index:500;animation:toastIn .25s ease;white-space:nowrap;display:flex;align-items:center;gap:8px;pointer-events:none}
 @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}.toast.success{border-color:rgba(34,197,94,.3);color:var(--green)}.toast.error{border-color:rgba(239,68,68,.3);color:var(--red)}
 .spin{width:14px;height:14px;border:2px solid var(--bd);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}@keyframes spin{to{transform:rotate(360deg)}}
@@ -148,7 +163,8 @@ td{padding:8px 11px;color:var(--t1)}td.r{text-align:right;font-family:var(--mono
   </div>
   <div class="tcard">
     <div class="tcard-hdr"><span class="sec-title">Detail per Ass. Lead</span><span class="sec-meta" id="dashRowLabel">–</span></div>
-    <div class="tbl-wrap"><table><thead id="dashTHead"></thead><tbody id="dashTBody"></tbody></table></div>
+    <!-- [NEW] id="dashTable" ditambahkan agar CSS sticky first-col bisa ditargetkan spesifik -->
+    <div class="tbl-wrap"><table id="dashTable"><thead id="dashTHead"></thead><tbody id="dashTBody"></tbody></table></div>
   </div>
 </div>
 <div id="pg-cases" class="page">
@@ -170,15 +186,26 @@ td{padding:8px 11px;color:var(--t1)}td.r{text-align:right;font-family:var(--mono
   </div>
 </div>
 </div>
+
+<!-- MODAL -->
 <div class="overlay hidden" id="caseOverlay" onclick="overlayClick(event)">
   <div class="modal">
     <div class="modal-hdr"><span class="modal-title" id="modalTitle">Case Detail</span><button class="modal-close" onclick="closeModal()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="modal-body" id="modalBody"><div class="empty-state"><div class="spin"></div><span>Memuat…</span></div></div>
-    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Tutup</button><button class="btn" id="submitBtn" onclick="submitUpdate()">Simpan Update</button></div>
+    <!-- [NEW] Tombol Hapus Case di kiri footer, dipisah dengan margin-right:auto -->
+    <div class="modal-foot">
+      <button class="btn btn-danger" id="deleteBtn" onclick="deleteCase()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+        Hapus Case
+      </button>
+      <button class="btn btn-ghost" onclick="closeModal()">Tutup</button>
+      <button class="btn" id="submitBtn" onclick="submitUpdate()">Simpan Update</button>
+    </div>
   </div>
 </div>
+
 <script>
-var ST={page:'dashboard',data:null,cases:null,opt:null,charts:{a:null,b:null},dSort:{k:'reminderCase',d:-1},cSort:{k:'dateReminder',d:-1},loading:false,curCase:null,selReason:'',selStatus:'',pg:1,perPg:20};
+var ST={page:'dashboard',data:null,cases:null,opt:null,charts:{a:null,b:null},dSort:{k:'reminderCase',d:-1},cSort:{k:'dateReminder',d:-1},loading:false,curCase:null,selReason:'',selStatus:'',pg:1,perPg:20,_autoFill:''};
 var F={num:function(n){return(n||0).toLocaleString('id-ID');},rp:function(n){n=n||0;if(n>=1e9)return(n/1e9).toFixed(2)+' M';if(n>=1e6)return(n/1e6).toFixed(1)+' Jt';return n.toLocaleString('id-ID');},rpf:function(n){return'Rp '+(n||0).toLocaleString('id-ID');},pct:function(v){return((v||0)*100).toFixed(1)+'%';},ini:function(n){return n.split(' ').slice(0,2).map(function(w){return w[0]||'';}).join('').toUpperCase();}};
 var AVC=['#3b82f6','#22c55e','#f59e0b','#ef4444','#a855f7','#06b6d4','#ec4899','#84cc16','#f97316','#14b8a6'];
 function avc(n){return AVC[(n.charCodeAt(0)||0)%AVC.length];}
@@ -266,7 +293,34 @@ function dSort(k){if(ST.dSort.k===k)ST.dSort.d*=-1;else{ST.dSort.k=k;ST.dSort.d=
 function goToCase(al,lead){goPage('cases',{assLead:al,lead:lead});}
 
 // ── CASES TABLE ──────────────────────────────────────────────
-var CCOLS=[{k:'dateReminder',lbl:'Date',r:false},{k:'lastUpdate',lbl:'Last Update',r:false},{k:'refId',lbl:'REF ID',r:false},{k:'courierId',lbl:'ID',r:false},{k:'name',lbl:'Nama',r:false},{k:'hub',lbl:'Hub',r:false},{k:'assLead',lbl:'Ass. Lead',r:false},{k:'lead',lbl:'Lead',r:false},{k:'amount',lbl:'Amount',r:true},{k:'rekPnp',lbl:'Rek PNP',r:true},{k:'status',lbl:'Status',r:false},{k:'caseCloseReason',lbl:'Reason',r:false},{k:'notes',lbl:'Notes',r:false}];
+// [NEW] Kolom DPD ditambahkan setelah status
+var CCOLS=[
+  {k:'dateReminder',lbl:'Date',r:false},
+  {k:'lastUpdate',lbl:'Last Update',r:false},
+  {k:'refId',lbl:'REF ID',r:false},
+  {k:'courierId',lbl:'ID',r:false},
+  {k:'name',lbl:'Nama',r:false},
+  {k:'hub',lbl:'Hub',r:false},
+  {k:'assLead',lbl:'Ass. Lead',r:false},
+  {k:'lead',lbl:'Lead',r:false},
+  {k:'amount',lbl:'Amount',r:true},
+  {k:'rekPnp',lbl:'Rek PNP',r:true},
+  {k:'status',lbl:'Status',r:false},
+  {k:'dpd',lbl:'DPD',r:true},
+  {k:'caseCloseReason',lbl:'Reason',r:false},
+  {k:'notes',lbl:'Notes',r:false}
+];
+
+// [NEW] Helper render DPD chip untuk tabel cases
+// Positif = merah (overdue), 0 = biru (hari ini), negatif = hijau (belum jatuh tempo), kosong = –
+function dpdChip(dpd, hasTanggal) {
+  if (!hasTanggal || dpd === null || dpd === undefined) {
+    return '<span style="color:var(--t3);font-family:var(--mono);font-size:11px">–</span>';
+  }
+  if (dpd > 0)  return '<span class="dpd-badge dpd-over">+'+dpd+'</span>';
+  if (dpd === 0) return '<span class="dpd-badge dpd-zero">0</span>';
+  return '<span class="dpd-badge dpd-ok">'+dpd+'</span>';
+}
 
 function sortCases(arr){var s=ST.cSort;return arr.slice().sort(function(a,b){var av=a[s.k],bv=b[s.k];
   if(DATE_COLS[s.k])return cmpDate(av,bv,s.d);
@@ -282,7 +336,7 @@ function renderCasesTable(cases){
     return'<th class="'+(c.r?'th-r ':'')+'" style="'+(isSorted?'color:var(--blue)':'')+'" onclick="cSort(\''+c.k+'\')">'+c.lbl+' '+(isSorted?(s.d===-1?'↓':'↑'):'')+'</th>';
   }).join('')+'</tr>';
   if(!cases||!cases.length){
-    document.getElementById('caseTBody').innerHTML='<tr><td colspan="13"><div class="empty-state">Tidak ada case</div></td></tr>';
+    document.getElementById('caseTBody').innerHTML='<tr><td colspan="'+CCOLS.length+'"><div class="empty-state">Tidak ada case</div></td></tr>';
     document.getElementById('caseRowLabel').textContent='0 case';
     document.getElementById('paginationBar').style.display='none';return;
   }
@@ -307,7 +361,10 @@ function renderCasesTable(cases){
       '<td style="color:var(--t2)">'+esc(c.lead)+'</td>'+
       '<td class="r" title="'+F.rpf(c.amount)+'">'+F.rp(c.amount)+'</td>'+
       '<td class="r" title="'+F.rpf(c.rekPnp)+'">'+F.rp(c.rekPnp)+'</td>'+
-      '<td>'+sC(c.status)+'</td><td>'+rC(c.caseCloseReason)+'</td>'+
+      '<td>'+sC(c.status)+'</td>'+
+      // [NEW] Kolom DPD
+      '<td class="r">'+dpdChip(c.dpd, !!c.tanggalJanjiBayar)+'</td>'+
+      '<td>'+rC(c.caseCloseReason)+'</td>'+
       '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;color:var(--t2)" title="'+esc(np)+'">'+esc(np)+'</td></tr>';
   }).join('');
   document.getElementById('pagInfo').textContent='| '+(start+1)+'–'+end+' dari '+total;
@@ -330,11 +387,20 @@ function onPerPageChange(){ST.perPg=parseInt(document.getElementById('perPageSel
 function cSort(k){if(ST.cSort.k===k)ST.cSort.d*=-1;else{ST.cSort.k=k;ST.cSort.d=-1;}ST.pg=1;if(ST.cases)renderCasesTable(ST.cases);}
 
 // ── MODAL ────────────────────────────────────────────────────
-function openCase(refId){document.getElementById('caseOverlay').classList.remove('hidden');document.getElementById('modalBody').innerHTML='<div class="empty-state"><div class="spin"></div><span>Memuat…</span></div>';document.getElementById('submitBtn').disabled=false;document.getElementById('submitBtn').textContent='Simpan Update';ST.curCase=null;ST.selReason='';ST.selStatus='';
-google.script.run.withSuccessHandler(function(c){if(!c){showToast('Case tidak ditemukan','error');closeModal();return;}ST.curCase=c;renderModal(c);}).withFailureHandler(function(e){showToast('Error: '+e.message,'error');closeModal();}).getCaseDetail(refId);}
+function openCase(refId){
+  document.getElementById('caseOverlay').classList.remove('hidden');
+  document.getElementById('modalBody').innerHTML='<div class="empty-state"><div class="spin"></div><span>Memuat…</span></div>';
+  document.getElementById('submitBtn').disabled=false;
+  document.getElementById('submitBtn').textContent='Simpan Update';
+  // [NEW] Reset delete button state
+  var db=document.getElementById('deleteBtn');
+  if(db){db.disabled=false;db.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg> Hapus Case';}
+  ST.curCase=null;ST.selReason='';ST.selStatus='';ST._autoFill='';
+  google.script.run.withSuccessHandler(function(c){if(!c){showToast('Case tidak ditemukan','error');closeModal();return;}ST.curCase=c;renderModal(c);}).withFailureHandler(function(e){showToast('Error: '+e.message,'error');closeModal();}).getCaseDetail(refId);
+}
 
 function renderModal(c){
-  ST.selReason=c.caseCloseReason||''; ST.selStatus=c.status||'';
+  ST.selReason=c.caseCloseReason||''; ST.selStatus=c.status||''; ST._autoFill='';
   var nb=c.name?' <span style="font-size:11px;font-weight:400;color:var(--t2)">'+esc(c.name)+'</span>':'';
   document.getElementById('modalTitle').innerHTML='Case · <span style="color:var(--blue)">'+esc(c.refId.slice(-8))+'</span>'+nb;
   function sC(st){var cl=st==='Case Close'?'s-Case-Close':st==='On Investigation'?'s-On-Investigation':'s-Open';return'<span class="chip '+cl+'">'+esc(st)+'</span>';}
@@ -358,7 +424,6 @@ function renderModal(c){
   else{nh='<div class="empty-state" style="padding:16px;color:var(--t3)">Belum ada notes</div>';}
 
   // Status buttons – pre-select status saat ini
-  var sCls={Open:'sel-open','On Investigation':'sel-inv','Case Close':'sel-cls'};
   var statusBtns='<div class="status-btns" id="statusBtns">'+
     '<button class="stat-btn'+(c.status==='Open'?' sel-open':'')+'" id="sBtn-Open" onclick="selectStatus(\'Open\')">'+
     '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>Open</button>'+
@@ -436,7 +501,26 @@ function onJanjiBayarChange(){
   else if(dpd===0){badge.className='dpd-badge dpd-today';badge.textContent='Hari ini';}
   else{badge.className='dpd-badge dpd-ok';badge.textContent=Math.abs(dpd)+' hari lagi';}
 }
-function selReason(r){ST.selReason=r;var n=document.getElementById('btnNEK'),p=document.getElementById('btnPNP');if(n)n.className='reason-btn'+(r==='NEK'?' sel-nek':'');if(p)p.className='reason-btn'+(r==='PNP'?' sel-pnp':'');var rq=document.getElementById('rReq');if(rq)rq.classList.remove('show');}
+
+// [MODIFIED] selReason – tambah auto-fill notes, jangan ganggu logic existing
+function selReason(r){
+  ST.selReason=r;
+  var n=document.getElementById('btnNEK'),p=document.getElementById('btnPNP');
+  if(n)n.className='reason-btn'+(r==='NEK'?' sel-nek':'');
+  if(p)p.className='reason-btn'+(r==='PNP'?' sel-pnp':'');
+  var rq=document.getElementById('rReq');if(rq)rq.classList.remove('show');
+  // [NEW] Auto-fill notes dengan template sesuai reason
+  // Jika notes kosong atau masih berisi auto-fill sebelumnya → replace
+  // Jika user sudah mengetik sendiri → jangan timpa
+  var ta=document.getElementById('newNotes');
+  if(ta){
+    var autoTxt=r==='NEK'?'Setor NEK Lunas':'Setor Penampung Lunas';
+    var cur=ta.value.trim();
+    if(!cur||cur===ST._autoFill){ta.value=autoTxt;ta.focus();}
+    ST._autoFill=autoTxt;
+  }
+}
+
 function submitUpdate(){
   if(!ST.curCase)return;
   // Status: hanya berubah jika berbeda dari status saat ini
@@ -460,7 +544,25 @@ function submitUpdate(){
     .withFailureHandler(function(e){btn.disabled=false;btn.textContent='Simpan Update';showToast('Error: '+e.message,'error');})
     .updateCase(ST.curCase.refId,ns,nn,'',cr,jb);
 }
-function closeModal(){document.getElementById('caseOverlay').classList.add('hidden');ST.curCase=null;ST.selReason='';}
+
+// [NEW] Delete case – hapus row dari sheet history
+function deleteCase(){
+  if(!ST.curCase)return;
+  var refSnippet=ST.curCase.refId.slice(-8);
+  var nama=ST.curCase.name?(' – '+ST.curCase.name):'';
+  if(!confirm('Hapus case ini secara permanen?\n\n'+refSnippet+nama+'\n\nTindakan ini tidak dapat dibatalkan.'))return;
+  var btn=document.getElementById('deleteBtn');
+  if(btn){btn.disabled=true;btn.innerHTML='<div class="spin" style="width:12px;height:12px;border-width:2px;border-top-color:var(--red)"></div>&nbsp;Menghapus…';}
+  google.script.run
+    .withSuccessHandler(function(res){
+      if(res.success){showToast('Case '+refSnippet+' berhasil dihapus','success');closeModal();loadPage();}
+      else{showToast('Error: '+(res.error||'Unknown'),'error');if(btn){btn.disabled=false;btn.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg> Hapus Case';}}
+    })
+    .withFailureHandler(function(e){showToast('Error: '+e.message,'error');if(btn){btn.disabled=false;btn.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg> Hapus Case';}})
+    .deleteCaseRow(ST.curCase.refId);
+}
+
+function closeModal(){document.getElementById('caseOverlay').classList.add('hidden');ST.curCase=null;ST.selReason='';ST._autoFill='';}
 function overlayClick(e){if(e.target===document.getElementById('caseOverlay'))closeModal();}
 
 // ── CHARTS ──────────────────────────────────────────────────
@@ -476,7 +578,8 @@ ch.b=new Chart(document.getElementById('chartB').getContext('2d'),{type:'bar',da
 // ── SKELETON & UTILS ─────────────────────────────────────────
 function showKPISkeleton(){var h='';for(var i=0;i<16;i++)h+='<div class="kpi-sk"><div class="sk sk-ic"></div><div class="sk sk-lb"></div><div class="sk sk-vl"></div><div class="sk sk-sb"></div></div>';document.getElementById('kpiGrid').innerHTML=h;}
 function showDashSkel(){var cw=[130,55,55,55,75,75,75,75,75,75,75,65,75,75,65,50,50,75,75],h='';for(var r=0;r<5;r++){h+='<tr>';cw.forEach(function(w){h+='<td><div class="sk sk-row-cell" style="width:'+(Math.round(Math.random()*30+40))+'%;max-width:'+w+'px"></div></td>';});h+='</tr>';}document.getElementById('dashTHead').innerHTML='';document.getElementById('dashTBody').innerHTML=h;}
-function showCaseSkel(){var cw=[80,80,70,65,130,130,120,110,80,70,100,70,190],h='';for(var r=0;r<8;r++){h+='<tr>';cw.forEach(function(w){h+='<td><div class="sk sk-row-cell" style="width:'+(Math.round(Math.random()*30+40))+'%;max-width:'+w+'px"></div></td>';});h+='</tr>';}document.getElementById('caseTHead').innerHTML='';document.getElementById('caseTBody').innerHTML=h;}
+// [MODIFIED] showCaseSkel – tambah 1 entry (50px) untuk kolom DPD baru
+function showCaseSkel(){var cw=[80,80,70,65,130,130,120,110,80,70,100,50,70,190],h='';for(var r=0;r<8;r++){h+='<tr>';cw.forEach(function(w){h+='<td><div class="sk sk-row-cell" style="width:'+(Math.round(Math.random()*30+40))+'%;max-width:'+w+'px"></div></td>';});h+='</tr>';}document.getElementById('caseTHead').innerHTML='';document.getElementById('caseTBody').innerHTML=h;}
 function showToast(msg,type){var t=document.createElement('div');t.className='toast '+(type||'');var ic=type==='success'?'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>':type==='error'?'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>':'';t.innerHTML=ic+esc(msg);document.body.appendChild(t);setTimeout(function(){t.style.opacity='0';t.style.transition='opacity .3s';setTimeout(function(){t.remove();},300);},2800);}
 function toggleTheme(){document.documentElement.classList.toggle('light');if(ST.data&&ST.data.byLead&&ST.data.byLead.length)renderCharts(ST.data.byLead);}
 </script>
