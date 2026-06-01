@@ -5,7 +5,7 @@
 //  Sheet: history
 //    REF ID | month | date_reminder | last_update | id | name |
 //    hub | amount | notes | case_status | rek_pnp | lead | ass_lead |
-//    case_close_reason
+//    case_close_reason | tanggal_janji_bayar
 //
 //  Sheet: notes_history
 //    ref_id | timestamp | notes | status_changed_to | updated_by |
@@ -79,7 +79,6 @@ function colMap(headers) {
 }
 
 // Hitung DPD (Days Past Due) dari tanggal janji bayar ke hari ini
-// Positif = sudah lewat, negatif = belum jatuh tempo, null = tidak ada tanggal
 function calcDPD(dateVal) {
   if (!dateVal) return null;
   var dt = dateVal instanceof Date ? dateVal : new Date(dateVal);
@@ -89,7 +88,7 @@ function calcDPD(dateVal) {
   return Math.round((today - dt) / (1000*60*60*24));
 }
 
-// Cari kolom secara case-insensitive sebagai fallback
+// Cari kolom secara case-insensitive
 function findColIdx(headers, name) {
   var trimmed = String(name).trim().toLowerCase();
   for (var i = 0; i < headers.length; i++) {
@@ -209,70 +208,123 @@ function _emptyTotals() {
 
 // =================================================================
 //  getCases(filters)
+//  [FIX] last_update & tanggal_janji_bayar kini pakai findColIdx
+//  (case-insensitive) agar tidak gagal karena mismatch header
 // =================================================================
 function getCases(filters) {
   setupSheets();
-  var sh=getHistSheet(),data=sh.getDataRange().getValues();
-  if (data.length<=1) return [];
-  var COL=colMap(data[0]),f=filters||{};
-  var fS=f.start?new Date(f.start):null, fE=f.end?new Date(f.end):null;
-  if (fE) fE.setHours(23,59,59);
-  var fSrch=(f.search||'').toLowerCase(), cases=[];
-  for (var i=1;i<data.length;i++) {
-    var row=data[i];
-    if (!passFilters(row,COL,f,fS,fE)) continue;
-    var refId  =String(row[COL['REF ID']]           ||'').trim();
-    var al     =String(row[COL['ass_lead']]         ||'').trim();
-    var lead   =String(row[COL['lead']]             ||'').trim();
-    var cid    =String(row[COL['id']]               ||'').trim();
-    var name   =String(row[COL['name']]             ||'').trim();
-    var hub    =String(row[COL['hub']]              ||'').trim();
-    var notes  =String(row[COL['notes']]            ||'').trim();
-    var status =String(row[COL['case_status']]      ||'').trim();
-    var month  =String(row[COL['month']]            ||'').trim();
-    var closeR =String(row[COL['case_close_reason']]||'').trim();
-    if (fSrch&&(refId+' '+al+' '+cid+' '+name+' '+hub+' '+notes).toLowerCase().indexOf(fSrch)===-1) continue;
-    cases.push({refId:refId,assLead:al,lead:lead,courierId:cid,name:name,hub:hub,
-      amount:pa(row[COL['amount']]),notes:notes,status:status,
-      rekPnp:pa(row[COL['rek_pnp']]),
-      dateReminder    :fd(row[COL['date_reminder']]),
-      lastUpdate      :fd(row[COL['last_update']]),
-      tanggalJanjiBayar:fd(row[COL['tanggal_janji_bayar']]),
-      dpd             :calcDPD(row[COL['tanggal_janji_bayar']]),
-      month:month,caseCloseReason:closeR});
+  var sh      = getHistSheet();
+  var data    = sh.getDataRange().getValues();
+  if (data.length <= 1) return [];
+
+  var headers = data[0];
+  var COL     = colMap(headers);
+  var f       = filters || {};
+
+  var fS = f.start ? new Date(f.start) : null;
+  var fE = f.end   ? new Date(f.end)   : null;
+  if (fE) fE.setHours(23, 59, 59);
+
+  // [FIX] Gunakan findColIdx agar lookup tahan terhadap beda casing
+  //       atau karakter tersembunyi pada header sheet
+  var iLastUpd  = findColIdx(headers, 'last_update');
+  var iJanjiByr = findColIdx(headers, 'tanggal_janji_bayar');
+
+  var fSrch = (f.search || '').toLowerCase();
+  var cases = [];
+
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    if (!passFilters(row, COL, f, fS, fE)) continue;
+
+    var refId  = String(row[COL['REF ID']]           || '').trim();
+    var al     = String(row[COL['ass_lead']]          || '').trim();
+    var lead   = String(row[COL['lead']]              || '').trim();
+    var cid    = String(row[COL['id']]                || '').trim();
+    var name   = String(row[COL['name']]              || '').trim();
+    var hub    = String(row[COL['hub']]               || '').trim();
+    var notes  = String(row[COL['notes']]             || '').trim();
+    var status = String(row[COL['case_status']]       || '').trim();
+    var month  = String(row[COL['month']]             || '').trim();
+    var closeR = String(row[COL['case_close_reason']] || '').trim();
+
+    if (fSrch && (refId+' '+al+' '+cid+' '+name+' '+hub+' '+notes)
+                   .toLowerCase().indexOf(fSrch) === -1) continue;
+
+    // [FIX] Ambil nilai kolom via index yang sudah di-resolve
+    var lastUpdVal  = iLastUpd  >= 0 ? row[iLastUpd]  : '';
+    var janjiByrVal = iJanjiByr >= 0 ? row[iJanjiByr] : '';
+
+    cases.push({
+      refId             : refId,
+      assLead           : al,
+      lead              : lead,
+      courierId         : cid,
+      name              : name,
+      hub               : hub,
+      amount            : pa(row[COL['amount']]),
+      notes             : notes,
+      status            : status,
+      rekPnp            : pa(row[COL['rek_pnp']]),
+      dateReminder      : fd(row[COL['date_reminder']]),
+      lastUpdate        : fd(lastUpdVal),       // [FIX]
+      tanggalJanjiBayar : fd(janjiByrVal),       // [FIX]
+      dpd               : calcDPD(janjiByrVal),  // [FIX]
+      month             : month,
+      caseCloseReason   : closeR
+    });
   }
+
   return cases;
 }
 
 // =================================================================
 //  getCaseDetail(refId)
+//  [FIX] last_update & tanggal_janji_bayar kini pakai findColIdx
 // =================================================================
 function getCaseDetail(refId) {
   setupSheets();
-  var sh=getHistSheet(),data=sh.getDataRange().getValues();
-  if (data.length<=1) return null;
-  var COL=colMap(data[0]);
-  for (var i=1;i<data.length;i++) {
-    if (String(data[i][COL['REF ID']]||'').trim()!==refId) continue;
-    var row=data[i];
-    return {refId:refId,
-      assLead        :String(row[COL['ass_lead']]         ||'').trim(),
-      lead           :String(row[COL['lead']]             ||'').trim(),
-      courierId      :String(row[COL['id']]               ||'').trim(),
-      name           :String(row[COL['name']]             ||'').trim(),
-      hub            :String(row[COL['hub']]              ||'').trim(),
-      amount         :pa(row[COL['amount']]),
-      notes          :String(row[COL['notes']]            ||'').trim(),
-      status         :String(row[COL['case_status']]      ||'').trim(),
-      rekPnp         :pa(row[COL['rek_pnp']]),
-      dateReminder   :fd(row[COL['date_reminder']]),
-      lastUpdate     :fd(row[COL['last_update']]),
-      month          :String(row[COL['month']]            ||'').trim(),
-      caseCloseReason  :String(row[COL['case_close_reason']]     ||'').trim(),
-      tanggalJanjiBayar:fd(row[COL['tanggal_janji_bayar']]),
-      dpd              :calcDPD(row[COL['tanggal_janji_bayar']]),
-      notesHistory     :getNoteHistory_(refId)};
+  var sh      = getHistSheet();
+  var data    = sh.getDataRange().getValues();
+  if (data.length <= 1) return null;
+
+  var headers = data[0];
+  var COL     = colMap(headers);
+
+  // [FIX] Gunakan findColIdx agar lookup tahan terhadap beda casing
+  var iLastUpd  = findColIdx(headers, 'last_update');
+  var iJanjiByr = findColIdx(headers, 'tanggal_janji_bayar');
+
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][COL['REF ID']] || '').trim() !== refId) continue;
+
+    var row = data[i];
+
+    // [FIX] Ambil nilai kolom via index yang sudah di-resolve
+    var lastUpdVal  = iLastUpd  >= 0 ? row[iLastUpd]  : '';
+    var janjiByrVal = iJanjiByr >= 0 ? row[iJanjiByr] : '';
+
+    return {
+      refId             : refId,
+      assLead           : String(row[COL['ass_lead']]          || '').trim(),
+      lead              : String(row[COL['lead']]              || '').trim(),
+      courierId         : String(row[COL['id']]                || '').trim(),
+      name              : String(row[COL['name']]              || '').trim(),
+      hub               : String(row[COL['hub']]               || '').trim(),
+      amount            : pa(row[COL['amount']]),
+      notes             : String(row[COL['notes']]             || '').trim(),
+      status            : String(row[COL['case_status']]       || '').trim(),
+      rekPnp            : pa(row[COL['rek_pnp']]),
+      dateReminder      : fd(row[COL['date_reminder']]),
+      lastUpdate        : fd(lastUpdVal),        // [FIX]
+      month             : String(row[COL['month']]             || '').trim(),
+      caseCloseReason   : String(row[COL['case_close_reason']] || '').trim(),
+      tanggalJanjiBayar : fd(janjiByrVal),        // [FIX]
+      dpd               : calcDPD(janjiByrVal),   // [FIX]
+      notesHistory      : getNoteHistory_(refId)
+    };
   }
+
   return null;
 }
 
@@ -301,7 +353,6 @@ function updateCase(refId, newStatus, newNotes, updatedBy, closeReason, tanggalJ
   var data    = sh.getDataRange().getValues();
   var headers = data[0];
 
-  // ── Cari index kolom secara case-insensitive ──
   function col(name) { return findColIdx(headers, name); }
 
   var colRefId    = col('REF ID');
@@ -318,7 +369,7 @@ function updateCase(refId, newStatus, newNotes, updatedBy, closeReason, tanggalJ
   var rowIdx = -1, oldStatus = '';
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][colRefId]||'').trim() === refId) {
-      rowIdx    = i + 1;                                  // 1-indexed
+      rowIdx    = i + 1;
       oldStatus = String(data[i][colStatus]||'').trim();
       break;
     }
@@ -326,25 +377,21 @@ function updateCase(refId, newStatus, newNotes, updatedBy, closeReason, tanggalJ
   if (rowIdx === -1) return {success:false, error:'Case tidak ditemukan: '+refId};
 
   var statusToSet = newStatus || '';
-  // Auto-promote Open → On Investigation jika ada notes baru
   if (oldStatus === 'Open' && newNotes && !statusToSet) statusToSet = 'On Investigation';
 
-  var now        = new Date();
-  var hasChange  = !!(statusToSet || newNotes);
+  var now       = new Date();
+  var hasChange = !!(statusToSet || newNotes);
 
-  // 1. Update case_status
   if (statusToSet && colStatus >= 0) {
     sh.getRange(rowIdx, colStatus + 1).setValue(statusToSet);
   }
 
-  // 2. Append notes dengan timestamp
   if (newNotes && colNotes >= 0) {
     var existing = String(sh.getRange(rowIdx, colNotes + 1).getValue()||'').trim();
     var entry    = '['+fdt(now)+'] '+newNotes;
     sh.getRange(rowIdx, colNotes + 1).setValue(existing ? existing+'\n'+entry : entry);
   }
 
-  // 3. Update case_close_reason jika Case Close
   var finalStatus = statusToSet || oldStatus;
   var reasonToSet = '';
   if (finalStatus === 'Case Close' && closeReason && colCloseR >= 0) {
@@ -352,7 +399,6 @@ function updateCase(refId, newStatus, newNotes, updatedBy, closeReason, tanggalJ
     sh.getRange(rowIdx, colCloseR + 1).setValue(closeReason);
   }
 
-  // 3.5 Update tanggal_janji_bayar jika diisi
   if (tanggalJanjiBayar && colJanjiByr >= 0) {
     var jbDate = new Date(tanggalJanjiBayar);
     if (!isNaN(jbDate.getTime())) {
@@ -362,22 +408,19 @@ function updateCase(refId, newStatus, newNotes, updatedBy, closeReason, tanggalJ
     }
   }
 
-  // 4. Update last_update — selalu diupdate jika ada perubahan apapun
   if (hasChange) {
     if (colLastUpd >= 0) {
       var lastUpdCell = sh.getRange(rowIdx, colLastUpd + 1);
       lastUpdCell.setValue(now);
-      lastUpdCell.setNumberFormat('dd MMM yyyy');   // pastikan tampil sebagai tanggal, bukan angka
+      lastUpdCell.setNumberFormat('dd MMM yyyy');
       Logger.log('last_update updated at col ' + (colLastUpd+1) + ' row ' + rowIdx);
     } else {
       Logger.log('WARNING: kolom last_update tidak ditemukan. Header sheet: ' + JSON.stringify(headers));
     }
   }
 
-  // Flush semua perubahan ke sheet sekaligus
   SpreadsheetApp.flush();
 
-  // 5. Catat ke notes_history
   addNoteHist_(refId, newNotes, finalStatus, updatedBy||'Dashboard', reasonToSet);
 
   return {success:true, newStatus:finalStatus};
@@ -392,6 +435,32 @@ function addNoteHist_(refId, notes, statusChanged, updatedBy, closeReason) {
     sh.setFrozenRows(1);
   }
   sh.appendRow([refId, new Date(), notes||'', statusChanged||'', updatedBy||'Dashboard', closeReason||'']);
+}
+
+// =================================================================
+//  deleteCaseRow(refId)
+//  Hapus 1 baris dari sheet history berdasarkan REF ID
+// =================================================================
+function deleteCaseRow(refId) {
+  if (!refId) return { success: false, error: 'REF ID tidak boleh kosong' };
+
+  var sh   = getHistSheet();
+  var data = sh.getDataRange().getValues();
+  if (data.length <= 1) return { success: false, error: 'Sheet kosong' };
+
+  var colRefId = findColIdx(data[0], 'REF ID');
+  if (colRefId < 0) return { success: false, error: 'Kolom REF ID tidak ditemukan' };
+
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][colRefId] || '').trim() === refId) {
+      sh.deleteRow(i + 1);
+      SpreadsheetApp.flush();
+      Logger.log('deleteCaseRow: baris ' + (i+1) + ' (REF ID: ' + refId + ') berhasil dihapus.');
+      return { success: true };
+    }
+  }
+
+  return { success: false, error: 'Case tidak ditemukan: ' + refId };
 }
 
 // ── Debug helper ─────────────────────────────────────────────
