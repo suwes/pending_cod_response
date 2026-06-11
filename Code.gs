@@ -6,6 +6,7 @@
 //    REF ID | month | date_reminder | last_update | id | name |
 //    hub | amount | notes | case_status | rek_pnp | lead | ass_lead |
 //    case_close_reason | tanggal_janji_bayar
+//    (kolom Q = is_deleted : diisi "deleted" saat soft-delete)
 //
 //  Sheet: notes_history
 //    ref_id | timestamp | notes | status_changed_to | updated_by |
@@ -109,8 +110,17 @@ function curMonth() {
           'August','September','October','November','December'][n.getMonth()]
           +' '+n.getFullYear();
 }
+
+// =================================================================
+//  passFilters(row, COL, f, fStart, fEnd)
+//  [CHANGE 1] Tambah soft-delete check: skip baris ber-flag "deleted"
+// =================================================================
 function passFilters(row, COL, f, fStart, fEnd) {
   if (!row[COL['REF ID']]) return false;
+  // [SOFT DELETE] Lewati baris yang sudah di-flag deleted di kolom is_deleted
+  // Jika kolom belum ada di sheet (undefined), semua baris tetap lolos – tidak ada false-exclusion
+  var idxDel = COL['is_deleted'];
+  if (idxDel !== undefined && String(row[idxDel] || '').trim().toLowerCase() === 'deleted') return false;
   if (f.month   && String(row[COL['month']]      ||'').trim()!==f.month)   return false;
   if (f.lead    && String(row[COL['lead']]       ||'').trim()!==f.lead)    return false;
   if (f.assLead && String(row[COL['ass_lead']]   ||'').trim()!==f.assLead) return false;
@@ -128,6 +138,7 @@ function passFilters(row, COL, f, fStart, fEnd) {
 
 // =================================================================
 //  getFilterOptions()
+//  [CHANGE 2] Skip baris ber-flag deleted di loop populasi filter dropdown
 // =================================================================
 function getFilterOptions() {
   setupSheets();
@@ -138,6 +149,9 @@ function getFilterOptions() {
   for (var i=1;i<data.length;i++) {
     var row=data[i];
     if (!row[COL['REF ID']]) continue;
+    // [SOFT DELETE] Lewati baris yang sudah di-flag deleted
+    var idxDel = COL['is_deleted'];
+    if (idxDel !== undefined && String(row[idxDel] || '').trim().toLowerCase() === 'deleted') continue;
     var m=String(row[COL['month']]      ||'').trim();
     var l=String(row[COL['lead']]       ||'').trim();
     var al=String(row[COL['ass_lead']]  ||'').trim();
@@ -155,6 +169,7 @@ function getFilterOptions() {
 
 // =================================================================
 //  getKPIData(filters)
+//  Tidak diubah — passFilters sudah handle soft-delete exclusion
 // =================================================================
 function getKPIData(filters) {
   setupSheets();
@@ -208,8 +223,7 @@ function _emptyTotals() {
 
 // =================================================================
 //  getCases(filters)
-//  [FIX] last_update & tanggal_janji_bayar kini pakai findColIdx
-//  (case-insensitive) agar tidak gagal karena mismatch header
+//  Tidak diubah — passFilters sudah handle soft-delete exclusion
 // =================================================================
 function getCases(filters) {
   setupSheets();
@@ -225,8 +239,6 @@ function getCases(filters) {
   var fE = f.end   ? new Date(f.end)   : null;
   if (fE) fE.setHours(23, 59, 59);
 
-  // [FIX] Gunakan findColIdx agar lookup tahan terhadap beda casing
-  //       atau karakter tersembunyi pada header sheet
   var iLastUpd  = findColIdx(headers, 'last_update');
   var iJanjiByr = findColIdx(headers, 'tanggal_janji_bayar');
 
@@ -251,7 +263,6 @@ function getCases(filters) {
     if (fSrch && (refId+' '+al+' '+cid+' '+name+' '+hub+' '+notes)
                    .toLowerCase().indexOf(fSrch) === -1) continue;
 
-    // [FIX] Ambil nilai kolom via index yang sudah di-resolve
     var lastUpdVal  = iLastUpd  >= 0 ? row[iLastUpd]  : '';
     var janjiByrVal = iJanjiByr >= 0 ? row[iJanjiByr] : '';
 
@@ -267,9 +278,9 @@ function getCases(filters) {
       status            : status,
       rekPnp            : pa(row[COL['rek_pnp']]),
       dateReminder      : fd(row[COL['date_reminder']]),
-      lastUpdate        : fd(lastUpdVal),       // [FIX]
-      tanggalJanjiBayar : fd(janjiByrVal),       // [FIX]
-      dpd               : calcDPD(janjiByrVal),  // [FIX]
+      lastUpdate        : fd(lastUpdVal),
+      tanggalJanjiBayar : fd(janjiByrVal),
+      dpd               : calcDPD(janjiByrVal),
       month             : month,
       caseCloseReason   : closeR
     });
@@ -280,7 +291,6 @@ function getCases(filters) {
 
 // =================================================================
 //  getCaseDetail(refId)
-//  [FIX] last_update & tanggal_janji_bayar kini pakai findColIdx
 // =================================================================
 function getCaseDetail(refId) {
   setupSheets();
@@ -291,7 +301,6 @@ function getCaseDetail(refId) {
   var headers = data[0];
   var COL     = colMap(headers);
 
-  // [FIX] Gunakan findColIdx agar lookup tahan terhadap beda casing
   var iLastUpd  = findColIdx(headers, 'last_update');
   var iJanjiByr = findColIdx(headers, 'tanggal_janji_bayar');
 
@@ -300,7 +309,6 @@ function getCaseDetail(refId) {
 
     var row = data[i];
 
-    // [FIX] Ambil nilai kolom via index yang sudah di-resolve
     var lastUpdVal  = iLastUpd  >= 0 ? row[iLastUpd]  : '';
     var janjiByrVal = iJanjiByr >= 0 ? row[iJanjiByr] : '';
 
@@ -316,11 +324,11 @@ function getCaseDetail(refId) {
       status            : String(row[COL['case_status']]       || '').trim(),
       rekPnp            : pa(row[COL['rek_pnp']]),
       dateReminder      : fd(row[COL['date_reminder']]),
-      lastUpdate        : fd(lastUpdVal),        // [FIX]
+      lastUpdate        : fd(lastUpdVal),
       month             : String(row[COL['month']]             || '').trim(),
       caseCloseReason   : String(row[COL['case_close_reason']] || '').trim(),
-      tanggalJanjiBayar : fd(janjiByrVal),        // [FIX]
-      dpd               : calcDPD(janjiByrVal),   // [FIX]
+      tanggalJanjiBayar : fd(janjiByrVal),
+      dpd               : calcDPD(janjiByrVal),
       notesHistory      : getNoteHistory_(refId)
     };
   }
@@ -439,23 +447,36 @@ function addNoteHist_(refId, notes, statusChanged, updatedBy, closeReason) {
 
 // =================================================================
 //  deleteCaseRow(refId)
-//  Hapus 1 baris dari sheet history berdasarkan REF ID
+//  [CHANGE 3] SOFT DELETE – flag kolom is_deleted (Q) = "deleted"
+//  Row tidak dihapus. Baris ter-flag otomatis dikecualikan dari
+//  semua perhitungan KPI, Cases list, dan filter dropdown.
 // =================================================================
 function deleteCaseRow(refId) {
   if (!refId) return { success: false, error: 'REF ID tidak boleh kosong' };
 
-  var sh   = getHistSheet();
-  var data = sh.getDataRange().getValues();
+  var sh      = getHistSheet();
+  var data    = sh.getDataRange().getValues();
   if (data.length <= 1) return { success: false, error: 'Sheet kosong' };
 
-  var colRefId = findColIdx(data[0], 'REF ID');
+  var headers  = data[0];
+  var colRefId = findColIdx(headers, 'REF ID');
   if (colRefId < 0) return { success: false, error: 'Kolom REF ID tidak ditemukan' };
+
+  // Cari kolom is_deleted. Jika belum ada di header sheet, default ke kolom Q (17, 1-based).
+  var colDel         = findColIdx(headers, 'is_deleted');
+  var colDelOneBased = colDel >= 0 ? (colDel + 1) : 17;
+
+  // Tulis header 'is_deleted' ke baris 1 jika kolom belum ada
+  if (colDel < 0) {
+    sh.getRange(1, colDelOneBased).setValue('is_deleted');
+    Logger.log('deleteCaseRow: header is_deleted ditulis ke kolom ' + colDelOneBased);
+  }
 
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][colRefId] || '').trim() === refId) {
-      sh.deleteRow(i + 1);
+      sh.getRange(i + 1, colDelOneBased).setValue('deleted');
       SpreadsheetApp.flush();
-      Logger.log('deleteCaseRow: baris ' + (i+1) + ' (REF ID: ' + refId + ') berhasil dihapus.');
+      Logger.log('softDelete: baris ' + (i+1) + ' (REF ID: ' + refId + ') di-flag deleted (kol ' + colDelOneBased + ').');
       return { success: true };
     }
   }
